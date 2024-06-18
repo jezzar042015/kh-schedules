@@ -4,9 +4,13 @@ import { useCongregationStore } from '@/stores/congregation';
 import { useAssignmentsStore } from '@/stores/assignments';
 import { useCoVisitStore } from '@/stores/covisits';
 
-
 const pinia = createPinia();
 setActivePinia(pinia);
+
+const assemblies = useAssembliesStore();
+const congregation = useCongregationStore();
+const assignments = useAssignmentsStore();
+const eventDetails = useCoVisitStore();
 
 const LOCAL_KEYS = {
     cong: "congregation",
@@ -55,6 +59,10 @@ async function compose() {
 
 async function restore(data) {
     const res = JSON.parse(data);
+    const pubs = res.cong.publishers
+    res.cong.publishers = await mergePublishers(pubs)
+
+    console.log('storing...');
     localStorage.setItem(LOCAL_KEYS.cong, JSON.stringify(res.cong))
     localStorage.setItem(LOCAL_KEYS.assignments, JSON.stringify(res.assignments))
     localStorage.setItem(LOCAL_KEYS.khmsEvents, JSON.stringify(res.khmsEvents))
@@ -62,15 +70,30 @@ async function restore(data) {
     localStorage.setItem(LOCAL_KEYS.visitDetails, JSON.stringify(res.visitDetails))
     localStorage.setItem(LOCAL_KEYS.eventDetails, JSON.stringify(res.eventDetails))
 
-    const assemblies = useAssembliesStore();
-    const congregation = useCongregationStore();
-    const assignments = useAssignmentsStore();
-    const eventDetails = useCoVisitStore();
-
     assemblies.retrieveLocal();
     congregation.retrieveLocal();
     assignments.retrieveLocal();
     eventDetails.retrieveLocal();
+}
+
+async function mergePublishers(restoredPubs) {
+    // todo: storedPubs is undefined
+    const storedPubs = [... congregation.publishers];
+    
+    console.log(await congregation.publishers);
+
+    for (const pub of restoredPubs) {
+        const exist = storedPubs.find(p => p.name === pub.name);
+        if (exist) {
+            exist.roles = pub.roles;
+        } else {
+            storedPubs.push(pub);
+        }
+    }
+
+    console.log(storedPubs);
+
+    return storedPubs;
 }
 
 function downloadJSONAsText(jsonObject) {
